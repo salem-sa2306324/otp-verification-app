@@ -1,0 +1,22 @@
+{
+  "name": "otp-verification-app",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "helmet": "^8.0.0",
+    "libphonenumber-js": "^1.11.20",
+    "nodemailer": "^6.10.0",
+    "twilio": "^5.4.0"
+  }
+}
