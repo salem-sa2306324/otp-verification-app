@@ -1,172 +1,129 @@
-# OTP Verification App
+# OTP Sign-In Website
 
-A small Node.js and Express website that sends a one-time password (OTP) to an email address or phone number, then checks the code entered by the user.
+A small website that signs people in with a one-time passcode (OTP) sent to either an **email address** or a **phone number** (SMS). There are no passwords. Built with React, Vite and Supabase Auth.
 
-The page uses plain HTML, CSS, and JavaScript. The server sends email through an SMTP account using Nodemailer, and text messages through Twilio.
+## How it works
 
-## What the website does
+1. The visitor picks **Email** or **Phone** and enters their address or number.
+2. The app calls `supabase.auth.signInWithOtp()`. Supabase generates a 6-digit code and sends it by email or SMS.
+3. The visitor types the code into the six boxes (pasting the full code works too, and phones can autofill it).
+4. The app calls `supabase.auth.verifyOtp()` with the code. If it is correct, Supabase creates a session and the page shows the signed-in screen.
+5. The session is stored by the Supabase client in the browser, so a refresh keeps the user signed in until they click **Sign out**.
 
-1. The visitor selects **Email** or **Text message**.
-2. They enter their email address or phone number.
-3. The server validates the input, generates a random six-digit code, and sends it using the selected provider.
-4. The visitor enters the code.
-5. The server checks the code and confirms the contact if it is correct and has not expired.
+If the visitor has never signed in before, Supabase creates the account automatically on the first successful verification.
 
-If the required provider credentials are missing, the server returns a setup error. It does not show a success message or display a pretend code.
+## Features
 
-## Requirements
+- Email and phone sign-in in one interface
+- Input checks before anything is sent: email format, and phone numbers in international format (`+` and country code, 8-15 digits, for example `+97455512345`)
+- Six-digit code entry with auto-advance, backspace navigation, paste support and one-time-code autofill
+- 30-second resend cooldown
+- Clear error messages for a bad number, a wrong code or an expired code
+- Session persistence and sign-out
+- Light and dark mode, mobile-friendly layout, visible keyboard focus
 
-- Node.js 20 or newer
-- An SMTP service/account for email, a Twilio account for SMS, or both
-- VS Code (optional, but useful for editing the project)
+## Project structure
 
-## Install and start
+```
+otp-site/
+├── index.html          Page shell and font
+├── package.json        Dependencies and scripts
+├── vite.config.js      Vite + React plugin
+├── .env.example        Template for your Supabase keys
+└── src/
+    ├── main.jsx        App entry point
+    ├── App.jsx         All UI and the OTP flow (request, verify, signed-in)
+    ├── supabase.js     Supabase client, created from env variables
+    └── styles.css      Styling
+```
 
-Open this project folder in VS Code. In the integrated terminal, run:
+## Setup
+
+### 1. Install
 
 ```bash
 npm install
 ```
 
-Create your local environment file by copying the example:
+### 2. Create a Supabase project
 
-**Windows PowerShell**
+Create a project at [supabase.com](https://supabase.com), then open **Project Settings → API** and copy the **Project URL** and the **anon public key**.
 
-```powershell
-Copy-Item .env.example .env
-```
-
-**macOS or Linux**
+### 3. Add your keys
 
 ```bash
 cp .env.example .env
 ```
 
-Open `.env` and set `OTP_SECRET` to a private random value with at least 32 characters. You can generate one with:
+Edit `.env`:
 
-```bash
-node -p "require('node:crypto').randomBytes(32).toString('hex')"
+```
+VITE_SUPABASE_URL=https://YOUR-PROJECT.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key
 ```
 
-Paste the generated value after `OTP_SECRET=` in `.env`. Keep this value private. Do not put it in source code or commit `.env` to GitHub.
+The anon key is designed to be public in browser code. Never put the `service_role` key in this project.
 
-Start the website:
+### 4. Turn on email codes
+
+In the Supabase dashboard go to **Authentication → Providers** and make sure **Email** is enabled.
+
+By default Supabase emails a magic link, not a code. To send a code, go to **Authentication → Email Templates → Magic Link** (and **Confirm signup** for new users) and include the token in the template:
+
+```html
+<h2>Your sign-in code</h2>
+<p>Enter this code: <strong>{{ .Token }}</strong></p>
+```
+
+Supabase's built-in email sender is rate limited and meant for testing. For real use, add your own SMTP server under **Project Settings → Authentication → SMTP**.
+
+### 5. Turn on phone codes
+
+Under **Authentication → Providers → Phone**, enable the provider and connect an SMS service (Twilio, MessageBird, Vonage or TextLocal). You need an account with that provider and a sender number or messaging service. SMS usually costs money per message.
+
+For development, the Phone provider settings let you define **test phone numbers with fixed codes** so you can test without sending real SMS.
+
+### 6. Run
 
 ```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser. Stop the server with Ctrl+C in the terminal.
+Open the address Vite prints (normally http://localhost:5173).
 
-For a normal start without automatic restart, use `npm start`.
+### 7. Add your site URL
 
-## Configure email delivery
+Under **Authentication → URL Configuration**, set the **Site URL** to your deployed address (and add `http://localhost:5173` as a redirect URL for development).
 
-Email is sent through SMTP. In `.env`, set:
-
-- `SMTP_HOST`: the SMTP server from your email provider.
-- `SMTP_PORT`: usually `587` for STARTTLS or `465` for a direct secure connection.
-- `SMTP_SECURE`: use `false` for port 587 and `true` for port 465.
-- `SMTP_USER`: the SMTP username supplied by your provider.
-- `SMTP_PASS`: the SMTP password or app password supplied by your provider.
-- `EMAIL_FROM`: the sender address permitted by that provider.
-
-Example format (replace the example values with your provider's actual details):
-
-```dotenv
-SMTP_HOST=smtp.example.com
-SMTP_PORT=587
-SMTP_SECURE=false
-SMTP_USER=your-smtp-username
-SMTP_PASS=your-smtp-password
-EMAIL_FROM=Your App <verified-sender@example.com>
-```
-
-Email providers use different SMTP servers and may require an app password or verified sender address. Follow your provider's SMTP instructions.
-
-## Configure SMS delivery
-
-Create/configure a Twilio phone number that can send SMS. In `.env`, set:
-
-- `TWILIO_ACCOUNT_SID`: your Twilio account SID.
-- `TWILIO_AUTH_TOKEN`: your Twilio auth token. Treat it like a password.
-- `TWILIO_PHONE_NUMBER`: the Twilio number sending the message, including the leading plus sign and country code.
-
-Example format:
-
-```dotenv
-TWILIO_ACCOUNT_SID=your-account-sid
-TWILIO_AUTH_TOKEN=your-auth-token
-TWILIO_PHONE_NUMBER=+15551234567
-```
-
-Enter recipient phone numbers in international format, such as `+15551234567`. Twilio trial accounts may only send to verified recipient numbers.
-
-You can configure either provider or both. Email works when the SMTP fields are filled in; SMS works when the Twilio fields are filled in.
-
-## Environment variables
-
-The project reads these values from `.env`:
-
-| Variable | Purpose |
-| --- | --- |
-| `PORT` | Local web server port. Defaults to `3000`. |
-| `OTP_SECRET` | Private key used to create secure OTP hashes. Set a random value of 32+ characters. |
-| `SMTP_HOST` | SMTP server hostname. |
-| `SMTP_PORT` | SMTP port, commonly 587 or 465. |
-| `SMTP_SECURE` | Set to `true` for direct TLS, otherwise `false`. |
-| `SMTP_USER` | SMTP login name. |
-| `SMTP_PASS` | SMTP password or app password. |
-| `EMAIL_FROM` | Verified sender address/name. |
-| `TWILIO_ACCOUNT_SID` | Twilio account identifier. |
-| `TWILIO_AUTH_TOKEN` | Twilio account secret. |
-| `TWILIO_PHONE_NUMBER` | Your Twilio sending number. |
-
-`.env.example` is safe to share because its values are blank or placeholders. A real `.env` file is ignored by Git.
-
-## Security protections
-
-- Codes are six digits and generated using Node.js cryptographic randomness.
-- The server stores an HMAC-SHA-256 digest of the code, not the plain code.
-- Each code expires after five minutes and is deleted after successful verification.
-- A code can be used only once.
-- A code allows up to five attempts.
-- A destination can request a new code once per minute.
-- Each IP address is rate-limited to five send/verify requests per 15 minutes.
-- Email addresses and international phone numbers are validated before sending.
-- Helmet adds common HTTP security headers, and JSON request bodies are size-limited.
-
-## Tests
-
-Run the included tests with:
+## Build and deploy
 
 ```bash
-npm test
+npm run build
 ```
 
-The tests cover email input validation and check that OTP digests change when the destination or code changes.
+This creates a `dist/` folder of static files. Upload it to any static host (Netlify, Vercel, Cloudflare Pages, GitHub Pages). Set the same two `VITE_` variables in the host's environment settings before building.
 
-## Project files
+## Security notes
 
-- `server.js`: Express server, validation, OTP creation, delivery, and verification endpoints.
-- `public/index.html`: Website structure and form.
-- `public/style.css`: Responsive, simple website styling.
-- `public/app.js`: Handles the form and communicates with the server.
-- `test/security.test.js`: Small automated security-related tests.
-- `.env.example`: Template for local settings; copy it to `.env`.
-- `.gitignore`: Prevents secrets and installed dependencies from being committed.
-- `package.json`: Dependencies and commands.
+- Codes are generated, stored, expire and are rate limited by Supabase. The app never sees or stores the correct code.
+- Codes expire after one hour by default. You can shorten this under **Authentication → Providers → Email / Phone** (OTP expiry).
+- Supabase limits how often a code can be requested for the same address. The 30-second cooldown in the UI matches the usual minimum gap, and the server enforces it regardless.
+- Enable CAPTCHA (**Authentication → Attack Protection**) before going live to stop automated SMS abuse, since SMS costs money.
+- If you add your own database tables, turn on Row Level Security for them.
 
 ## Troubleshooting
 
-- **“Email delivery is not configured”**: Fill in all SMTP settings, then restart the server.
-- **“SMS delivery is not configured”**: Fill in the Twilio SID, token, and sending number, then restart.
-- **SMTP login or send error**: Check your provider's SMTP host, port, secure setting, password/app password, and verified sender.
-- **Twilio error**: Check the SID and token, confirm the Twilio number can send SMS, and check whether a trial account requires recipient verification.
-- **Phone number rejected**: Include the country code, for example `+1...`.
-- **“OTP_SECRET” setup error**: Add a private random value at least 32 characters long to `.env`, then restart.
-- **No code arrives**: Check the provider's delivery logs, spam folder, recipient number, provider account limits, and credentials.
+| Problem | Likely cause |
+| --- | --- |
+| "Almost ready" screen appears | `.env` is missing or the dev server was not restarted after creating it |
+| Email arrives with a link, not a code | The email template does not contain `{{ .Token }}` |
+| "Unable to validate phone" or SMS never arrives | Phone provider or SMS credentials are not set up, or the number is not in `+countrycode` format |
+| "Email rate limit exceeded" | Built-in email sender limit reached; set up custom SMTP |
+| Wrong or expired code message | Code was mistyped, already used, or older than the expiry time; request a new one |
 
-## Important limitation
+## Customising
 
-Active OTP challenges are kept in the server's memory. They disappear when the server restarts, and separate server instances do not share them. For a public production service, use shared storage such as Redis, add monitoring and destination-based abuse controls, serve the site over HTTPS, and review email/SMS consent requirements. This project is a learning starter, not a complete production identity system.
+- **Code length**: change `LENGTH` in `src/App.jsx` and match it in the Supabase OTP length setting.
+- **After sign-in**: replace the signed-in block in `App.jsx` with your own page or router.
+- **Resend delay**: change `COOLDOWN` in `src/App.jsx`.
+- **Colors and fonts**: edit the variables at the top of `src/styles.css`.
