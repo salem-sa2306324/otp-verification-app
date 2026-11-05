@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Verify with OTP</title>
+<style>
+:root{--bg:#f4f5f9;--card:#fff;--text:#14161f;--muted:#6a6f82;--line:#dfe2ec;--accent:#4f46e5;--accent-t:#fff;--ok:#0f9d6a;--err:#d93a4a;--note:#fff7e0;--note-t:#7a5b00;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1017;--card:#171a25;--text:#eef0f7;--muted:#9aa0b5;--line:#2a2f42;--accent:#7c78ff;--accent-t:#0e1017;--ok:#34d399;--err:#ff6b7a;--note:#2b2410;--note-t:#f2cf6b}}
+:root[data-theme="dark"]{--bg:#0e1017;--card:#171a25;--text:#eef0f7;--muted:#9aa0b5;--line:#2a2f42;--accent:#7c78ff;--accent-t:#0e1017;--ok:#34d399;--err:#ff6b7a;--note:#2b2410;--note-t:#f2cf6b}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;min-height:100vh;display:grid;place-items:center;padding:20px;background:var(--bg);color:var(--text);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.card{width:100%;max-width:400px;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:28px 24px;box-shadow:0 8px 30px rgba(0,0,0,.06)}
+h1{font-size:22px;margin:0 0 4px}
+p.sub{margin:0 0 20px;color:var(--muted);font-size:14px}
+.tabs{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:var(--bg);padding:4px;border-radius:12px;margin-bottom:18px}
+.tabs button{border:0;background:transparent;color:var(--muted);padding:9px;border-radius:9px;font:inherit;font-size:14px;font-weight:600;cursor:pointer}
+.tabs button.on{background:var(--card);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.15)}
+label{display:block;font-size:13px;font-weight:600;margin-bottom:6px}
+.row{display:flex;gap:8px}
+input,select{width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--text);font:inherit}
+input:focus,select:focus{outline:2px solid var(--accent);outline-offset:1px}
+select{width:auto;flex:0 0 108px}
+.btn{width:100%;margin-top:16px;padding:13px;border:0;border-radius:10px;background:var(--accent);color:var(--accent-t);font:inherit;font-weight:700;cursor:pointer}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.link{background:none;border:0;color:var(--accent);font:inherit;font-size:14px;cursor:pointer;padding:0}
+.link:disabled{color:var(--muted);cursor:default}
+.err{color:var(--err);font-size:13px;min-height:18px;margin-top:8px}
+.otp{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin:6px 0 4px}
+.otp input{text-align:center;font-size:22px;font-weight:700;padding:12px 0}
+.meta{display:flex;justify-content:space-between;align-items:center;margin-top:14px;font-size:14px;color:var(--muted)}
+.note{margin-top:18px;padding:10px 12px;border-radius:10px;background:var(--note);color:var(--note-t);font-size:13px}
+.note b{letter-spacing:3px;font-size:15px}
+.ok{text-align:center}
+.ok .tick{width:64px;height:64px;border-radius:50%;background:var(--ok);color:#fff;font-size:34px;display:grid;place-items:center;margin:0 auto 14px}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<main class="card">
+  <section id="s1">
+    <h1>Verify your identity</h1>
+    <p class="sub">We’ll send a 6-digit code to your email or phone.</p>
+    <div class="tabs" role="tablist">
+      <button id="tabE" class="on" role="tab">Email</button>
+      <button id="tabP" role="tab">Phone</button>
+    </div>
+    <div id="fE">
+      <label for="email">Email address</label>
+      <input id="email" type="email" inputmode="email" autocomplete="email" placeholder="you@example.com">
+    </div>
+    <div id="fP" hidden>
+      <label for="phone">Phone number</label>
+      <div class="row">
+        <select id="cc" aria-label="Country code">
+          <option value="+974">QA +974</option><option value="+1">US +1</option><option value="+44">UK +44</option><option value="+971">AE +971</option><option value="+966">SA +966</option><option value="+20">EG +20</option><option value="+91">IN +91</option><option value="+49">DE +49</option><option value="+33">FR +33</option>
+        </select>
+        <input id="phone" type="tel" inputmode="tel" autocomplete="tel-national" placeholder="5512 3456">
+      </div>
+    </div>
+    <div class="err" id="e1" role="alert"></div>
+    <button class="btn" id="send">Send code</button>
+  </section>
+
+  <section id="s2" hidden>
+    <h1>Enter the code</h1>
+    <p class="sub">Sent to <b id="dest"></b></p>
+    <div class="otp" id="boxes"></div>
+    <div class="err" id="e2" role="alert"></div>
+    <button class="btn" id="verify">Verify</button>
+    <div class="meta">
+      <button class="link" id="back">← Change</button>
+      <span><span id="timer"></span> <button class="link" id="resend" disabled>Resend</button></span>
+    </div>
+    <div class="note">Demo mode: no real message is sent. Your code is <b id="demo"></b></div>
+  </section>
+
+  <section id="s3" class="ok" hidden>
+    <div class="tick">✓</div>
+    <h1>Verified</h1>
+    <p class="sub" id="okmsg"></p>
+    <button class="btn" id="again">Start over</button>
+  </section>
+</main>
+
+<script>
+const $=id=>document.getElementById(id);
+let mode='email',target='',code='',expires=0,tries=0,tick=null;
+const N=6;
+
+// Build code boxes
+const boxes=[];
+for(let i=0;i<N;i++){
+  const b=document.createElement('input');
+  b.inputMode='numeric';b.maxLength=1;b.autocomplete=i===0?'one-time-code':'off';b.setAttribute('aria-label','Digit '+(i+1));
+  b.addEventListener('input',()=>{b.value=b.value.replace(/\D/g,'');if(b.value&&i<N-1)boxes[i+1].focus();});
+  b.addEventListener('keydown',e=>{
+    if(e.key==='Backspace'&&!b.value&&i>0)boxes[i-1].focus();
+    if(e.key==='Enter')doVerify();
+  });
+  b.addEventListener('paste',e=>{
+    const t=(e.clipboardData.getData('text')||'').replace(/\D/g,'').slice(0,N);
+    if(!t)return;e.preventDefault();
+    [...t].forEach((c,k)=>boxes[k].value=c);
+    boxes[Math.min(t.length,N-1)].focus();
+  });
+  boxes.push(b);$('boxes').appendChild(b);
+}
+
+function setMode(m){
+  mode=m;
+  $('tabE').classList.toggle('on',m==='email');
+  $('tabP').classList.toggle('on',m==='phone');
+  $('fE').hidden=m!=='email';
+  $('fP').hidden=m!=='phone';
+  $('e1').textContent='';
+}
+$('tabE').onclick=()=>setMode('email');
+$('tabP').onclick=()=>setMode('phone');
+
+function validate(){
+  if(mode==='email'){
+    const v=$('email').value.trim();
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v))return{err:'Enter a valid email address.'};
+    return{val:v.toLowerCase()};
+  }
+  const d=$('phone').value.replace(/[\s\-()]/g,'').replace(/^0+/,'');
+  if(!/^\d{6,14}$/.test(d))return{err:'Enter a valid phone number (digits only).'};
+  return{val:$('cc').value+d};
+}
+
+function mask(v){
+  if(mode==='email'){const[a,b]=v.split('@');return a[0]+'•'.repeat(Math.max(a.length-1,2))+'@'+b;}
+  return v.slice(0,-4).replace(/\d/g,(c,i)=>i<4?c:'•')+v.slice(-4);
+}
+
+function issue(){
+  const a=new Uint32Array(1);crypto.getRandomValues(a);
+  code=String(a[0]%1000000).padStart(N,'0');
+  expires=Date.now()+5*60*1000;tries=0;
+  $('demo').textContent=code;
+  boxes.forEach(b=>b.value='');
+  $('e2').textContent='';
+  startCooldown(30);
+  boxes[0].focus();
+}
+
+function startCooldown(s){
+  clearInterval(tick);$('resend').disabled=true;
+  const end=Date.now()+s*1000;
+  const t=()=>{
+    const left=Math.ceil((end-Date.now())/1000);
+    if(left<=0){clearInterval(tick);$('timer').textContent='';$('resend').disabled=false;}
+    else $('timer').textContent='Resend in '+left+'s';
+  };
+  t();tick=setInterval(t,500);
+}
+
+function show(id){['s1','s2','s3'].forEach(s=>$(s).hidden=s!==id);}
+
+$('send').onclick=()=>{
+  const r=validate();
+  if(r.err){$('e1').textContent=r.err;return;}
+  target=r.val;$('dest').textContent=mask(target);
+  show('s2');issue();
+};
+$('resend').onclick=issue;
+$('back').onclick=()=>{clearInterval(tick);show('s1');};
+
+function doVerify(){
+  const entered=boxes.map(b=>b.value).join('');
+  if(entered.length<N){$('e2').textContent='Enter all 6 digits.';return;}
+  if(Date.now()>expires){$('e2').textContent='This code has expired. Request a new one.';return;}
+  if(tries>=5){$('e2').textContent='Too many attempts. Request a new code.';return;}
+  if(entered!==code){tries++;$('e2').textContent='Incorrect code. '+(5-tries)+' attempt'+(5-tries===1?'':'s')+' left.';return;}
+  clearInterval(tick);
+  $('okmsg').textContent=(mode==='email'?'Email ':'Phone ')+target+' is confirmed.';
+  show('s3');
+}
+$('verify').onclick=doVerify;
+$('again').onclick=()=>{$('email').value='';$('phone').value='';show('s1');};
+</script>
+</body>
+</html>
